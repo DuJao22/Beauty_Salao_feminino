@@ -20,7 +20,14 @@ export function TenantProvider() {
   const location = window.location.pathname;
 
   useEffect(() => {
-    if (!tenantSlug) return;
+    if (!tenantSlug) {
+      // Reset to defaults if no tenant slug
+      document.documentElement.style.removeProperty('--color-primary');
+      document.documentElement.style.removeProperty('--color-accent');
+      document.documentElement.style.removeProperty('--color-secondary');
+      document.documentElement.style.removeProperty('--color-surface');
+      return;
+    }
 
     fetch(`/api/tenant-info`, {
       headers: { 'x-tenant-slug': tenantSlug }
@@ -34,9 +41,18 @@ export function TenantProvider() {
         // Apply custom colors
         if (data.primary_color) {
           document.documentElement.style.setProperty('--color-primary', data.primary_color);
+          document.documentElement.style.setProperty('--color-accent', data.primary_color);
+        } else {
+          document.documentElement.style.removeProperty('--color-primary');
+          document.documentElement.style.removeProperty('--color-accent');
         }
+
         if (data.secondary_color) {
           document.documentElement.style.setProperty('--color-secondary', data.secondary_color);
+          document.documentElement.style.setProperty('--color-surface', data.secondary_color);
+        } else {
+          document.documentElement.style.removeProperty('--color-secondary');
+          document.documentElement.style.removeProperty('--color-surface');
         }
         setLoading(false);
       })
@@ -44,6 +60,14 @@ export function TenantProvider() {
         setError(err.message);
         setLoading(false);
       });
+
+    return () => {
+      // Cleanup colors on unmount or slug change
+      document.documentElement.style.removeProperty('--color-primary');
+      document.documentElement.style.removeProperty('--color-accent');
+      document.documentElement.style.removeProperty('--color-secondary');
+      document.documentElement.style.removeProperty('--color-surface');
+    };
   }, [tenantSlug]);
 
   if (loading) {

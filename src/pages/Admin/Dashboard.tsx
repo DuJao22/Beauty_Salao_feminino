@@ -1258,6 +1258,7 @@ export default function AdminDashboard() {
                         onChange={e => {
                           setSettings({...settings, primary_color: e.target.value});
                           document.documentElement.style.setProperty('--color-primary', e.target.value);
+                          document.documentElement.style.setProperty('--color-accent', e.target.value);
                         }} 
                         className="w-12 h-12 rounded-lg cursor-pointer border border-secondary" 
                       />
@@ -1273,6 +1274,7 @@ export default function AdminDashboard() {
                         onChange={e => {
                           setSettings({...settings, secondary_color: e.target.value});
                           document.documentElement.style.setProperty('--color-secondary', e.target.value);
+                          document.documentElement.style.setProperty('--color-surface', e.target.value);
                         }} 
                         className="w-12 h-12 rounded-lg cursor-pointer border border-secondary" 
                       />
