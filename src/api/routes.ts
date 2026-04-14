@@ -33,24 +33,36 @@ const resolveTenant = async (req: Request, res: Response, next: NextFunction) =>
     const isUnpaid = !tenant.subscription_due_date;
     const isExempt = !!tenant.is_exempt;
 
-    // If unpaid and not exempt, restrict access
-    if (!isExempt && isUnpaid && tenant.status !== 'deleted') {
-      // We don't necessarily delete, but we block access in the next check
-    }
-
     if (tenant.status === 'suspended') {
       return res.status(403).json({ error: 'Account suspended' });
     }
 
-    if (!isExempt && (tenant.status === 'deleted' || isUnpaid) && 
+    // Block specific actions for unpaid tenants
+    if (!isExempt && isUnpaid && tenant.status !== 'deleted') {
+      // Allow GET requests so they can "see" the system
+      // But block POST /appointments to prevent receiving appointments
+      if (req.method === 'POST' && req.path === '/appointments') {
+        return res.status(403).json({ 
+          error: 'Sistema em modo de demonstração. Ative sua conta para receber agendamentos.',
+          isDemo: true 
+        });
+      }
+
+      // Block other administrative POST/PUT/DELETE actions if needed, 
+      // but the user said "let them see normally", so we allow GETs.
+      // We also allow the payment routes.
+    }
+
+    if (!isExempt && (tenant.status === 'deleted') && 
         !req.path.includes('/subscription/pay') && 
         !req.path.includes('/webhook') &&
         !(req.path.includes('/admin/tenant') && req.method === 'GET') &&
         !req.path.includes('/tenant-info')) {
-      return res.status(403).json({ error: 'Sistema Temporariamente Indisponível. Realize o pagamento de R$ 70 para ativar.' });
+      return res.status(403).json({ error: 'Sistema Temporariamente Indisponível.' });
     }
 
     (req as any).tenant = tenant;
+    (req as any).isUnpaid = isUnpaid && !isExempt;
     next();
   } catch (error) {
     res.status(500).json({ error: 'Error resolving tenant' });

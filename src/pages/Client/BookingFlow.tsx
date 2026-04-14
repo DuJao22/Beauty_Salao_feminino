@@ -99,7 +99,12 @@ export default function BookingFlow() {
       if (response.ok) {
         setBookingSuccess(true);
       } else {
-        alert('Erro ao realizar agendamento. Tente novamente.');
+        const data = await response.json();
+        if (data.isDemo) {
+          alert('Este estabelecimento ainda não ativou o sistema de agendamentos. Por favor, entre em contato diretamente com o profissional.');
+        } else {
+          alert(data.error || 'Erro ao realizar agendamento. Tente novamente.');
+        }
       }
     } catch (error: any) {
       console.warn('Booking error:', error.message);

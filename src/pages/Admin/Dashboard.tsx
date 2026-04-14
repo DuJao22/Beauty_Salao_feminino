@@ -374,11 +374,23 @@ export default function AdminDashboard() {
     if (tenantInfo.subscription_due_date) {
       const dueDate = new Date(tenantInfo.subscription_due_date);
       if (dueDate > new Date()) return true;
-      return false;
     }
 
-    // No due date yet (new tenant) - Must pay to use
-    return false;
+    // We return true here to allow them to "see" the system, 
+    // but we will show a banner if they haven't paid.
+    return true;
+  };
+
+  const isDemoMode = () => {
+    if (!tenantInfo) return false;
+    if (tenantInfo.is_exempt) return false;
+    if (tenantInfo.status === 'deleted') return true;
+    
+    if (tenantInfo.subscription_due_date) {
+      const dueDate = new Date(tenantInfo.subscription_due_date);
+      if (dueDate > new Date()) return false;
+    }
+    return true;
   };
 
   const handlePayment = async () => {
@@ -397,30 +409,16 @@ export default function AdminDashboard() {
     }
   };
 
-  if (!isSubscriptionActive()) {
+  if (tenantInfo?.status === 'deleted') {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-6">
         <div className="bg-surface max-w-md w-full p-8 rounded-3xl border border-secondary shadow-xl text-center">
           <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6">
             <AlertCircle className="w-8 h-8" />
           </div>
-          <h2 className="text-2xl font-display text-text-main mb-4">Sistema Temporariamente Indisponível</h2>
-          <p className="text-text-light mb-8">
-            Seu sistema está temporariamente indisponível por falta de pagamento. Para reativar seu site e liberar o acesso total, realize o pagamento da taxa de manutenção de R$ 70,00.
-          </p>
-          <button 
-            onClick={handlePayment}
-            className="w-full py-4 bg-accent text-white rounded-xl font-medium hover:bg-accent/90 transition-colors shadow-lg shadow-accent/20 flex items-center justify-center"
-          >
-            <DollarSign className="w-5 h-5 mr-2" />
-            Pagar Mensalidade (Cartão)
-          </button>
-          <button 
-            onClick={handleLogout}
-            className="mt-4 w-full py-3 text-text-light hover:bg-secondary/50 rounded-xl font-medium transition-colors"
-          >
-            Sair
-          </button>
+          <h2 className="text-2xl font-display text-text-main mb-4">Conta Excluída</h2>
+          <p className="text-text-light mb-8">Esta conta foi removida do sistema.</p>
+          <button onClick={handleLogout} className="w-full py-3 bg-secondary text-text-main rounded-xl font-medium">Sair</button>
         </div>
       </div>
     );
@@ -428,6 +426,66 @@ export default function AdminDashboard() {
 
   return (
     <div className="min-h-screen bg-background p-6">
+      {/* Flashing Activation Banner */}
+      {isDemoMode() && (
+        <motion.div 
+          animate={{ backgroundColor: ['#ef4444', '#b91c1c', '#ef4444'] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          className="fixed top-0 left-0 w-full z-[100] py-3 px-4 text-center text-white font-bold shadow-lg flex items-center justify-center gap-4"
+        >
+          <AlertCircle className="w-5 h-5 animate-pulse" />
+          <span>SISTEMA EM MODO DE DEMONSTRAÇÃO - ATIVE SUA CONTA PARA RECEBER AGENDAMENTOS</span>
+          <button 
+            onClick={handlePayment}
+            className="bg-white text-red-600 px-4 py-1 rounded-full text-sm hover:bg-zinc-100 transition-colors shadow-sm"
+          >
+            Ativar Agora
+          </button>
+        </motion.div>
+      )}
+
+      {/* Flashing Floating Card for Demo Mode */}
+      <AnimatePresence>
+        {isDemoMode() && (
+          <motion.div 
+            initial={{ opacity: 0, x: 100 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="fixed bottom-8 left-8 z-[110] pointer-events-none"
+          >
+            <motion.div 
+              animate={{ 
+                scale: [1, 1.05, 1],
+                boxShadow: [
+                  '0 10px 15px -3px rgba(239, 68, 68, 0.1)',
+                  '0 20px 25px -5px rgba(239, 68, 68, 0.4)',
+                  '0 10px 15px -3px rgba(239, 68, 68, 0.1)'
+                ]
+              }}
+              transition={{ 
+                duration: 2, 
+                repeat: Infinity,
+                ease: "easeInOut"
+              }}
+              className="bg-white p-6 rounded-3xl border-2 border-red-500 shadow-2xl text-center max-w-[280px] pointer-events-auto"
+            >
+              <div className="w-12 h-12 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                <DollarSign className="w-6 h-6" />
+              </div>
+              <h3 className="text-lg font-bold text-red-600 mb-1">Ativação Pendente</h3>
+              <p className="text-zinc-600 text-xs mb-4">
+                Seu sistema está em modo demonstração. Ative para receber agendamentos reais.
+              </p>
+              <button 
+                onClick={handlePayment}
+                className="w-full py-2.5 bg-red-600 text-white rounded-xl font-bold text-sm hover:bg-red-700 transition-colors"
+              >
+                Ativar Agora (R$ 70)
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {showBalloon && (
           <motion.div 

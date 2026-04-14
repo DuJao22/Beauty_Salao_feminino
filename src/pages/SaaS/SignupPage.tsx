@@ -95,6 +95,13 @@ export default function SignupPage() {
           >
             {loading ? 'Processando...' : 'Pagar com Mercado Pago'}
           </button>
+
+          <button 
+            onClick={() => navigate(`/${createdTenant.slug}/admin/login`)}
+            className="mt-4 w-full py-3 text-text-light hover:text-text-main font-medium transition-colors"
+          >
+            Ver Painel em Modo Demo
+          </button>
           
           <p className="mt-6 text-xs text-text-light">
             Após o pagamento, seu sistema será liberado automaticamente.
