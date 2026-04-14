@@ -4,7 +4,7 @@ async function run() {
   console.log('Iniciando geração do banco de dados SQLite...');
   try {
     await initDb();
-    console.log('Banco de dados gerado com sucesso! O arquivo "database.sqlite" foi criado na raiz do projeto.');
+    console.log('Banco de dados inicializado com sucesso no SQLite Cloud!');
   } catch (error) {
     console.error('Erro ao gerar o banco de dados:', error);
     process.exit(1);

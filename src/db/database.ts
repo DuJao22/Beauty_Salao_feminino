@@ -1,32 +1,42 @@
-import sqlite3 from 'sqlite3';
-import { open, Database } from 'sqlite';
-import path from 'path';
-import fs from 'fs';
+import { Database } from '@sqlitecloud/drivers';
 
-let db: Database | null = null;
+let db: any = null;
 
 export async function getDb() {
   if (!db) {
-    const isProduction = process.env.NODE_ENV === 'production';
-    const dbFolder = isProduction ? '/app/data' : process.cwd();
+    const connectionString = process.env.SQLITE_CLOUD_CONNECTION_STRING;
     
-    // Ensure folder exists in production if using persistent disk
-    if (isProduction && !fs.existsSync(dbFolder)) {
-      try {
-        fs.mkdirSync(dbFolder, { recursive: true });
-      } catch (e) {
-        console.error('Error creating db folder:', e);
-      }
+    if (!connectionString) {
+      throw new Error('SQLITE_CLOUD_CONNECTION_STRING is not defined in environment variables');
     }
 
-    const dbPath = path.join(dbFolder, 'database.sqlite');
-    
-    db = await open({
-      filename: dbPath,
-      driver: sqlite3.Database
-    });
-    
-    console.log('Successfully connected to local SQLite database at', dbPath);
+    try {
+      const connection = new Database(connectionString);
+      
+      // Wrapper to maintain compatibility with the previous sqlite package API
+      db = {
+        connection,
+        get: async (sql: string, ...params: any[]) => {
+          const result = await connection.sql(sql, ...params);
+          return Array.isArray(result) ? result[0] : result;
+        },
+        all: async (sql: string, ...params: any[]) => {
+          const result = await connection.sql(sql, ...params);
+          return Array.isArray(result) ? result : [result];
+        },
+        run: async (sql: string, ...params: any[]) => {
+          return await connection.sql(sql, ...params);
+        },
+        exec: async (sql: string) => {
+          return await connection.exec(sql);
+        }
+      };
+      
+      console.log('Successfully connected to SQLite Cloud and initialized wrapper');
+    } catch (error) {
+      console.error('Failed to connect to SQLite Cloud:', error);
+      throw error;
+    }
   }
   return db;
 }
@@ -35,6 +45,7 @@ export async function initDb() {
   const database = await getDb();
   
   try {
+    // SQLite Cloud uses .exec for multiple statements
     await database.exec(`
       CREATE TABLE IF NOT EXISTS tenants (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -206,6 +217,8 @@ export async function initDb() {
         INSERT INTO tenants (slug, name, primary_color, secondary_color, admin_username, admin_password, subscription_due_date, subscription_status) 
         VALUES ('salao-beleza-premium', 'Salão de Beleza Premium', '#DB2777', '#FDF2F8', 'admin', 'admin123', ?, 'active')
       `, futureDate.toISOString());
+      
+      // SQLite Cloud .run returns an object with lastID
       const tenantId = result.lastID;
 
       await database.run(`
@@ -237,7 +250,7 @@ export async function initDb() {
       `, tenantId, tenantId, tenantId, tenantId, tenantId, tenantId, tenantId);
     }
   } catch (error) {
-    console.error('Error initializing SQLite database:', error);
+    console.error('Error initializing SQLite Cloud database:', error);
   }
 }
 

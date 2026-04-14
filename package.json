@@ -9,7 +9,7 @@
   "scripts": {
     "dev": "tsx server.ts",
     "setup-db": "tsx setup-db.ts",
-    "build": "vite build && esbuild server.ts --bundle --platform=node --outfile=dist/server.cjs --format=cjs --external:express --external:vite --external:node-cron --external:@sqlitecloud/drivers --external:sqlite3 --external:sqlite",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --outfile=dist/server.cjs --format=cjs --external:express --external:vite --external:node-cron --external:@sqlitecloud/drivers",
     "start": "node dist/server.cjs",
     "preview": "vite preview",
     "clean": "rm -rf dist",
@@ -36,8 +36,6 @@
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.13.2",
     "recharts": "^3.8.1",
-    "sqlite": "^5.1.1",
-    "sqlite3": "^5.1.7",
     "tailwind-merge": "^3.5.0",
     "three": "^0.183.2",
     "vite": "^6.2.0",
