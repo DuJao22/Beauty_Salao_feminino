@@ -3,35 +3,100 @@ import { Database } from '@sqlitecloud/drivers';
 let db: any = null;
 
 export async function getDb() {
-  if (!db) {
-    const connectionString = process.env.SQLITE_CLOUD_CONNECTION_STRING;
-    
-    if (!connectionString) {
-      throw new Error('SQLITE_CLOUD_CONNECTION_STRING is not defined in environment variables');
-    }
+  const connectionString = process.env.SQLITE_CLOUD_CONNECTION_STRING;
+  
+  if (!connectionString) {
+    throw new Error('SQLITE_CLOUD_CONNECTION_STRING is not defined in environment variables');
+  }
 
+  // If we already have a db wrapper, try to validate the connection
+  if (db) {
+    try {
+      // Small query to test if connection is still alive
+      // Increased resilience: use a 2s timeout for this check
+      await Promise.race([
+        db.connection.sql('SELECT 1'),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('Connection check timeout')), 2000))
+      ]);
+      return db;
+    } catch (e) {
+      console.warn('Database connection lost or unstable, attempting to reconnect...', e);
+      db = null; // Mark for reconnection
+    }
+  }
+
+  // Create new connection if none exists or if it was lost
+  if (!db) {
     try {
       const connection = new Database(connectionString);
       
-      // Wrapper to maintain compatibility with the previous sqlite package API
-      db = {
+      const wrapper = {
         connection,
         get: async (sql: string, ...params: any[]) => {
-          const result = await connection.sql(sql, ...params);
-          return Array.isArray(result) ? result[0] : result;
+          try {
+            const result = await connection.sql(sql, ...params);
+            return Array.isArray(result) ? result[0] : result;
+          } catch (err: any) {
+            if (err.message?.includes('Connection unavailable') || 
+                err.message?.includes('disconnected') || 
+                err.message?.includes('check timeout')) {
+              console.log(`Detected disconnection in .get(), retrying operation...`);
+              db = null; 
+              const newDb = await getDb(); 
+              return await newDb.get(sql, ...params);
+            }
+            throw err;
+          }
         },
         all: async (sql: string, ...params: any[]) => {
-          const result = await connection.sql(sql, ...params);
-          return Array.isArray(result) ? result : [result];
+          try {
+            const result = await connection.sql(sql, ...params);
+            return Array.isArray(result) ? result : [result];
+          } catch (err: any) {
+            if (err.message?.includes('Connection unavailable') || 
+                err.message?.includes('disconnected') || 
+                err.message?.includes('check timeout')) {
+              console.log(`Detected disconnection in .all(), retrying operation...`);
+              db = null;
+              const newDb = await getDb();
+              return await newDb.all(sql, ...params);
+            }
+            throw err;
+          }
         },
         run: async (sql: string, ...params: any[]) => {
-          return await connection.sql(sql, ...params);
+          try {
+            return await connection.sql(sql, ...params);
+          } catch (err: any) {
+            if (err.message?.includes('Connection unavailable') || 
+                err.message?.includes('disconnected') || 
+                err.message?.includes('check timeout')) {
+              console.log(`Detected disconnection in .run(), retrying operation...`);
+              db = null;
+              const newDb = await getDb();
+              return await newDb.run(sql, ...params);
+            }
+            throw err;
+          }
         },
         exec: async (sql: string) => {
-          return await connection.exec(sql);
+          try {
+            return await connection.exec(sql);
+          } catch (err: any) {
+            if (err.message?.includes('Connection unavailable') || 
+                err.message?.includes('disconnected') || 
+                err.message?.includes('check timeout')) {
+              console.log(`Detected disconnection in .exec(), retrying operation...`);
+              db = null;
+              const newDb = await getDb();
+              return await newDb.exec(sql);
+            }
+            throw err;
+          }
         }
       };
       
+      db = wrapper;
       console.log('Successfully connected to SQLite Cloud and initialized wrapper');
     } catch (error) {
       console.error('Failed to connect to SQLite Cloud:', error);
